@@ -13,30 +13,33 @@ func Run() {
 
 	inputFile := os.Args[1]
 
-	// Parse the input file: retrieve ant count, room definitions, and tunnel definitions.
+	// Parse the input file.
 	antCount, rooms, tunnels, err := ParseInputFile(inputFile)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	// Build the graph structure representing the ant farm.
+	// Build the graph.
 	antFarmGraph, err := BuildGraph(rooms, tunnels)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	// Find the quickest path(s) from the start to the end room.
-	paths, err := FindQuickestPaths(antFarmGraph)
-	if err != nil {
-		fmt.Println("ERROR: no path found")
+	// Find multiple valid paths from start to end.
+	paths, err := FindMultiplePaths(antFarmGraph)
+	if err != nil || len(paths) == 0 {
+		fmt.Println("ERROR: no valid paths found")
 		os.Exit(1)
 	}
 
-	// Echo the input data if required by the project specifications.
+	// Echo the input data.
 	PrintInputData(antCount, rooms, tunnels)
 
-	// Simulate the ant movements along the found path(s).
-	SimulateAntMovements(antCount, paths)
+	// Assign ants to paths.
+	assignment := AssignAnts(antCount, paths)
+
+	// Simulate movements along the multiple paths concurrently.
+	SimulateMultiPath(antCount, paths, assignment)
 }

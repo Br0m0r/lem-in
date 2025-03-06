@@ -5,59 +5,91 @@ import (
 	"strings"
 )
 
-// SimulateAntMovements takes the ant count and paths and prints the ant movements turn-by-turn.
-// This example assumes a single path. A more complex version could handle multiple paths.
-func SimulateAntMovements(antCount int, paths [][]string) {
-	// Assume one path.
-	path := paths[0]
-	pathLength := len(path)
+// SimulateMultiPath moves ants along multiple paths concurrently based on the assignment.
+// It prints the moves turn by turn, ensuring each intermediate room holds only one ant.
+func SimulateMultiPath(antCount int, paths [][]string, assignment PathAssignment) {
+	// For each path, set up a simulation state.
+	// Each simulation state tracks:
+	// - The path (slice of room names)
+	// - Positions for each ant assigned to that path (initially -1 means not injected)
+	// - The ant IDs assigned to that path.
+	type pathSim struct {
+		Path      []string
+		Positions []int // position index on the path for each ant assigned to this path
+		AntIDs    []int // the global ant numbers assigned to this path
+	}
+	sims := make([]pathSim, len(paths))
+	antCounter := 1
+	for i, p := range paths {
+		count := assignment.AntsPerPath[i]
+		positions := make([]int, count)
+		for j := range positions {
+			positions[j] = -1
+		}
+		antIDs := make([]int, count)
+		for j := 0; j < count; j++ {
+			antIDs[j] = antCounter
+			antCounter++
+		}
+		sims[i] = pathSim{Path: p, Positions: positions, AntIDs: antIDs}
+	}
 
-	// positions holds the current position index for each ant on the path (-1 means not yet entered).
-	positions := make([]int, antCount)
+	turn := 0
+	done := false
+	for !done {
+		turn++
+		turnMoves := []string{}
+		done = true // assume all paths are finished; will be set false if any path still has moving ants
 
-	// Continue until all ants have reached the final room (index pathLength-1).
-	for !allAntsAtEnd(positions, pathLength-1) {
-		moves := []string{}
+		// Process each path simulation.
+		for _, sim := range sims {
+			pathLen := len(sim.Path)
+			// newPositions will hold the updated positions for this turn.
+			newPos := make([]int, len(sim.Positions))
+			copy(newPos, sim.Positions)
 
-		// Move ants from the end of the path to the beginning to avoid collisions.
-		for i := antCount - 1; i >= 0; i-- {
-			if positions[i] < pathLength-1 {
-				if canMove(positions, i) {
-					positions[i]++
-					moves = append(moves, fmt.Sprintf("L%d-%s", i+1, path[positions[i]]))
+			// Process ants in order for this path.
+			for j := 0; j < len(sim.Positions); j++ {
+				// If ant j has not yet been injected.
+				if sim.Positions[j] == -1 {
+					// Check newPos: if the first intermediate room (index 1) is free,
+					// inject this ant.
+					if !isOccupied(newPos, 1) {
+						newPos[j] = 1
+						turnMoves = append(turnMoves, fmt.Sprintf("L%d-%s", sim.AntIDs[j], sim.Path[1]))
+					}
+				} else if sim.Positions[j] < pathLen-1 { // The ant is on the path but not finished.
+					next := sim.Positions[j] + 1
+					// For movement, check if the next room is free in newPos.
+					if next == pathLen-1 || !isOccupied(newPos, next) {
+						newPos[j] = next
+						turnMoves = append(turnMoves, fmt.Sprintf("L%d-%s", sim.AntIDs[j], sim.Path[next]))
+					}
+				}
+			}
+			// Update the simulation state for this path.
+			copy(sim.Positions, newPos)
+			// Check if any ant on this path is still not finished.
+			for _, pos := range sim.Positions {
+				if pos != pathLen-1 {
+					done = false
+					break
 				}
 			}
 		}
-
-		// Print all moves for this turn.
-		if len(moves) > 0 {
-			fmt.Println(joinMoves(moves))
+		if len(turnMoves) > 0 {
+			fmt.Printf("Turn %d: %s\n", turn, strings.Join(turnMoves, " "))
 		}
 	}
+	fmt.Printf("Total turns: %d\n", turn)
 }
 
-// allAntsAtEnd checks if all ants have reached the final room.
-func allAntsAtEnd(positions []int, endPos int) bool {
-	for _, pos := range positions {
-		if pos != endPos {
-			return false
+// isOccupied returns true if any ant in positions is at the given position.
+func isOccupied(positions []int, pos int) bool {
+	for _, p := range positions {
+		if p == pos {
+			return true
 		}
 	}
-	return true
-}
-
-// canMove checks if the ant at index antIndex can move forward (ensuring the next position is unoccupied).
-func canMove(positions []int, antIndex int) bool {
-	nextPos := positions[antIndex] + 1
-	for j, pos := range positions {
-		if j != antIndex && pos == nextPos {
-			return false
-		}
-	}
-	return true
-}
-
-// joinMoves concatenates the moves into a single string, separated by a space.
-func joinMoves(moves []string) string {
-	return strings.Join(moves, " ")
+	return false
 }
