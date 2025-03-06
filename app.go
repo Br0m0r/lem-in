@@ -20,6 +20,27 @@ func Run() {
 		os.Exit(1)
 	}
 
+	// Basic validation: ant count must be > 0.
+	if antCount <= 0 {
+		fmt.Println("ERROR: invalid data format")
+		os.Exit(1)
+	}
+
+	// Check that at least one start and one end room exist.
+	var startFound, endFound bool
+	for _, room := range rooms {
+		if room.IsStart {
+			startFound = true
+		}
+		if room.IsEnd {
+			endFound = true
+		}
+	}
+	if !startFound || !endFound {
+		fmt.Println("ERROR: invalid data format")
+		os.Exit(1)
+	}
+
 	// Build the graph.
 	antFarmGraph, err := BuildGraph(rooms, tunnels)
 	if err != nil {
@@ -30,7 +51,7 @@ func Run() {
 	// Find multiple valid vertex-disjoint paths from start to end.
 	paths, err := FindMultiplePaths(antFarmGraph)
 	if err != nil || len(paths) == 0 {
-		fmt.Println("ERROR: no valid paths found")
+		fmt.Println("ERROR: invalid data format")
 		os.Exit(1)
 	}
 

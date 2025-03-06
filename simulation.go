@@ -6,7 +6,7 @@ import (
 )
 
 // SimulateMultiPath moves ants along multiple paths concurrently based on the assignment.
-// It prints the moves turn by turn, ensuring that no intermediate room is occupied by more than one ant per turn.
+// It prints the moves turn by turn, ensuring that no intermediate room (other than start/end) is occupied by more than one ant per turn.
 func SimulateMultiPath(antCount int, paths [][]string, assignment PathAssignment) {
 	// Each simulation state represents a path's state.
 	// For each path, we track:
@@ -63,7 +63,7 @@ func SimulateMultiPath(antCount int, paths [][]string, assignment PathAssignment
 	for !done {
 		turn++
 		turnMoves := []string{}
-		done = true // assume finished; will set false if any path isn't complete
+		done = true // assume finished; set false if any ant hasn't finished
 
 		for _, sim := range sims {
 			pathLen := len(sim.Path)
@@ -71,8 +71,8 @@ func SimulateMultiPath(antCount int, paths [][]string, assignment PathAssignment
 			copy(newPos, sim.Positions)
 
 			for j := 0; j < len(sim.Positions); j++ {
+				// Injection: if ant hasn't been injected (-1) and first intermediate room (index 1) is free.
 				if sim.Positions[j] == -1 {
-					// Injection: if not injected and first intermediate room (index 1) is free in newPos.
 					if !isOccupied(newPos, 1) {
 						newPos[j] = 1
 						turnMoves = append(turnMoves, fmt.Sprintf("L%d-%s", sim.AntIDs[j], sim.Path[1]))

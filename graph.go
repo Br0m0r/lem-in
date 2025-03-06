@@ -38,7 +38,7 @@ func CopyGraph(g *Graph) *Graph {
 		Neighbors: make(map[string][]string),
 	}
 	for k, room := range g.Rooms {
-		newG.Rooms[k] = room // Rooms are immutable here.
+		newG.Rooms[k] = room // Rooms are immutable.
 	}
 	for k, neighbors := range g.Neighbors {
 		newNeighbors := make([]string, len(neighbors))
@@ -49,7 +49,7 @@ func CopyGraph(g *Graph) *Graph {
 }
 
 // FindMultiplePaths finds all vertex-disjoint paths from start to end by repeatedly running BFS
-// and removing intermediate vertices from the copied graph.
+// and removing intermediate vertices from a copied graph.
 func FindMultiplePaths(g *Graph) ([][]string, error) {
 	var paths [][]string
 
@@ -94,7 +94,7 @@ func FindMultiplePaths(g *Graph) ([][]string, error) {
 	}
 
 	if len(paths) == 0 {
-		return nil, errors.New("ERROR: no path found")
+		return nil, errors.New("ERROR: no valid paths found")
 	}
 	return paths, nil
 }
