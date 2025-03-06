@@ -5,12 +5,6 @@ import (
 	"fmt"
 )
 
-// Graph structure using an adjacency list.
-type Graph struct {
-	Rooms     map[string]*Room
-	Neighbors map[string][]string // mapping room name to names of adjacent rooms.
-}
-
 // BuildGraph constructs a graph from rooms and tunnels.
 func BuildGraph(rooms []Room, tunnels []Tunnel) (*Graph, error) {
 	g := &Graph{
@@ -41,7 +35,7 @@ func BuildGraph(rooms []Room, tunnels []Tunnel) (*Graph, error) {
 }
 
 // FindQuickestPaths implements BFS to find a shortest path from start to end.
-// For now, this returns a single shortest path.
+// For simplicity, this returns a single shortest path.
 func FindQuickestPaths(g *Graph) ([][]string, error) {
 	var startRoom, endRoom string
 	for name, room := range g.Rooms {

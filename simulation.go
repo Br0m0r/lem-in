@@ -7,11 +7,11 @@ import (
 // SimulateAntMovements takes the ant count and paths and prints the ant movements turn-by-turn.
 // This example assumes a single path. A more complex version could handle multiple paths.
 func SimulateAntMovements(antCount int, paths [][]string) {
-	// For simplicity, assume one path.
+	// Assume one path.
 	path := paths[0]
 	pathLength := len(path)
 
-	// positions holds the current position index for each ant on the path (-1 indicates not yet entered the path).
+	// positions holds the current position index for each ant on the path (-1 means not yet entered).
 	positions := make([]int, antCount)
 
 	// Continue until all ants have reached the final room (index pathLength-1).
@@ -45,7 +45,7 @@ func allAntsAtEnd(positions []int, endPos int) bool {
 	return true
 }
 
-// canMove checks if ant at index antIndex can move forward (ensuring the next position is unoccupied).
+// canMove checks if the ant at index antIndex can move forward (ensuring the next position is unoccupied).
 func canMove(positions []int, antIndex int) bool {
 	nextPos := positions[antIndex] + 1
 	for j, pos := range positions {

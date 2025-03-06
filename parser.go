@@ -9,21 +9,6 @@ import (
 	"strings"
 )
 
-// Room represents a room in the ant farm.
-type Room struct {
-	Name    string
-	X       int
-	Y       int
-	IsStart bool
-	IsEnd   bool
-}
-
-// Tunnel represents a connection between two rooms.
-type Tunnel struct {
-	RoomA string
-	RoomB string
-}
-
 // ParseInputFile reads the file and returns ant count, rooms, and tunnels.
 func ParseInputFile(filename string) (int, []Room, []Tunnel, error) {
 	file, err := os.Open(filename)
@@ -50,12 +35,12 @@ func ParseInputFile(filename string) (int, []Room, []Tunnel, error) {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
-		// Ignore comments (except commands)
+		// Ignore empty lines.
 		if len(line) == 0 {
 			continue
 		}
+		// Process commands and comments.
 		if line[0] == '#' {
-			// Handle commands
 			if strings.HasPrefix(line, "##start") {
 				isNextRoomStart = true
 				continue
@@ -67,7 +52,7 @@ func ParseInputFile(filename string) (int, []Room, []Tunnel, error) {
 			continue
 		}
 
-		// Check if line is a room definition (room name and coordinates)
+		// Check if line is a room definition (room name and coordinates).
 		parts := strings.Fields(line)
 		if len(parts) == 3 {
 			x, errX := strconv.Atoi(parts[1])
@@ -88,7 +73,7 @@ func ParseInputFile(filename string) (int, []Room, []Tunnel, error) {
 			continue
 		}
 
-		// Check if line is a tunnel definition (roomA-roomB)
+		// Check if line is a tunnel definition (roomA-roomB).
 		if strings.Contains(line, "-") {
 			roomNames := strings.Split(line, "-")
 			if len(roomNames) != 2 {
@@ -98,8 +83,6 @@ func ParseInputFile(filename string) (int, []Room, []Tunnel, error) {
 			continue
 		}
 	}
-
-	// Additional validations (e.g., ensuring there is exactly one start and one end room) can be added here.
 
 	return antCount, rooms, tunnels, nil
 }
