@@ -20,3 +20,9 @@ type Graph struct {
 	Rooms     map[string]*Room
 	Neighbors map[string][]string // mapping room name to adjacent room names.
 }
+
+type pathSim struct {
+	Path      []string
+	Positions []int // position index for each ant in this path
+	AntIDs    []int // global ant numbers for this path
+}
