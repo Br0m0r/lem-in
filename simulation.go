@@ -70,7 +70,8 @@ func SimulateMultiPath(antCount int, paths [][]string, assignment PathAssignment
 			newPos := make([]int, len(sim.Positions))
 			copy(newPos, sim.Positions)
 
-			for j := 0; j < len(sim.Positions); j++ {
+			// Process ants in reverse order so that those closer to the end move first.
+			for j := len(sim.Positions) - 1; j >= 0; j-- {
 				// Injection: if ant hasn't been injected (-1) and first intermediate room (index 1) is free.
 				if sim.Positions[j] == -1 {
 					if !isOccupied(newPos, 1) {
@@ -79,12 +80,15 @@ func SimulateMultiPath(antCount int, paths [][]string, assignment PathAssignment
 					}
 				} else if sim.Positions[j] < pathLen-1 {
 					next := sim.Positions[j] + 1
+					// If the next room is the end or is free.
 					if next == pathLen-1 || !isOccupied(newPos, next) {
 						newPos[j] = next
 						turnMoves = append(turnMoves, fmt.Sprintf("L%d-%s", sim.AntIDs[j], sim.Path[next]))
 					}
 				}
 			}
+
+			// Update the positions.
 			copy(sim.Positions, newPos)
 			for _, pos := range sim.Positions {
 				if pos != pathLen-1 {
@@ -93,6 +97,7 @@ func SimulateMultiPath(antCount int, paths [][]string, assignment PathAssignment
 				}
 			}
 		}
+
 		if len(turnMoves) > 0 {
 			fmt.Printf("Turn %d: %s\n", turn, strings.Join(turnMoves, " "))
 		}

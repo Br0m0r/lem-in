@@ -48,6 +48,27 @@ func CopyGraph(g *Graph) *Graph {
 	return newG
 }
 
+// removeEdge removes the edge between u and v in the graph.
+func removeEdge(g *Graph, u, v string) {
+	// Remove v from u's neighbor list.
+	newList := []string{}
+	for _, w := range g.Neighbors[u] {
+		if w != v {
+			newList = append(newList, w)
+		}
+	}
+	g.Neighbors[u] = newList
+
+	// Remove u from v's neighbor list.
+	newList = []string{}
+	for _, w := range g.Neighbors[v] {
+		if w != u {
+			newList = append(newList, w)
+		}
+	}
+	g.Neighbors[v] = newList
+}
+
 // FindMultiplePaths finds all vertex-disjoint paths from start to end by repeatedly running BFS
 // and removing intermediate vertices from a copied graph.
 func FindMultiplePaths(g *Graph) ([][]string, error) {
@@ -75,20 +96,25 @@ func FindMultiplePaths(g *Graph) ([][]string, error) {
 			break
 		}
 		paths = append(paths, path)
-		// Remove intermediate vertices (except start and end) from Gcopy.
-		for i := 1; i < len(path)-1; i++ {
-			v := path[i]
-			delete(Gcopy.Rooms, v)
-			delete(Gcopy.Neighbors, v)
-			// Remove v from all neighbor lists.
-			for k, nList := range Gcopy.Neighbors {
-				newList := []string{}
-				for _, w := range nList {
-					if w != v {
-						newList = append(newList, w)
+		if len(path) == 2 {
+			// For a direct path, remove the edge so it won't be found repeatedly.
+			removeEdge(Gcopy, start, end)
+		} else {
+			// Remove intermediate vertices (except start and end) from Gcopy.
+			for i := 1; i < len(path)-1; i++ {
+				v := path[i]
+				delete(Gcopy.Rooms, v)
+				delete(Gcopy.Neighbors, v)
+				// Remove v from all neighbor lists.
+				for k, nList := range Gcopy.Neighbors {
+					newList := []string{}
+					for _, w := range nList {
+						if w != v {
+							newList = append(newList, w)
+						}
 					}
+					Gcopy.Neighbors[k] = newList
 				}
-				Gcopy.Neighbors[k] = newList
 			}
 		}
 	}
