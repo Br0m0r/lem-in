@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// ParseInputFile reads the file and returns ant count, rooms, and tunnels.
+// ParseInputFile reads the file and returns the ant count, rooms, and tunnels.
 func ParseInputFile(filename string) (int, []Room, []Tunnel, error) {
 	file, err := os.Open(filename)
 	if err != nil {

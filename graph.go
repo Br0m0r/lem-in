@@ -31,12 +31,33 @@ func BuildGraph(rooms []Room, tunnels []Tunnel) (*Graph, error) {
 	return g, nil
 }
 
-// FindMultiplePaths finds all valid paths from start to end.
-// This is a stub for demonstration; in a full solution, implement a multi-path algorithm (e.g., Edmonds-Karp).
+// CopyGraph creates a deep copy of the given graph.
+func CopyGraph(g *Graph) *Graph {
+	newG := &Graph{
+		Rooms:     make(map[string]*Room),
+		Neighbors: make(map[string][]string),
+	}
+	for k, room := range g.Rooms {
+		newG.Rooms[k] = room // Rooms are immutable here.
+	}
+	for k, neighbors := range g.Neighbors {
+		newNeighbors := make([]string, len(neighbors))
+		copy(newNeighbors, neighbors)
+		newG.Neighbors[k] = newNeighbors
+	}
+	return newG
+}
+
+// FindMultiplePaths finds all vertex-disjoint paths from start to end by repeatedly running BFS
+// and removing intermediate vertices from the copied graph.
 func FindMultiplePaths(g *Graph) ([][]string, error) {
+	var paths [][]string
+
+	Gcopy := CopyGraph(g)
+
 	// Identify start and end.
 	var start, end string
-	for name, room := range g.Rooms {
+	for name, room := range Gcopy.Rooms {
 		if room.IsStart {
 			start = name
 		}
@@ -48,19 +69,33 @@ func FindMultiplePaths(g *Graph) ([][]string, error) {
 		return nil, errors.New("ERROR: missing start or end room")
 	}
 
-	// --- BEGIN STUB ---
-	// In a full solution, dynamically extract disjoint paths here.
-	// For now, we'll use a simple heuristic: run multiple BFS searches while removing used edges.
-	// As an example, we return:
-	//   For any input, return at least one path (BFS path) as a fallback.
-	path, err := FindSinglePath(g, start, end)
-	if err != nil {
-		return nil, err
+	for {
+		path, err := FindSinglePath(Gcopy, start, end)
+		if err != nil {
+			break
+		}
+		paths = append(paths, path)
+		// Remove intermediate vertices (except start and end) from Gcopy.
+		for i := 1; i < len(path)-1; i++ {
+			v := path[i]
+			delete(Gcopy.Rooms, v)
+			delete(Gcopy.Neighbors, v)
+			// Remove v from all neighbor lists.
+			for k, nList := range Gcopy.Neighbors {
+				newList := []string{}
+				for _, w := range nList {
+					if w != v {
+						newList = append(newList, w)
+					}
+				}
+				Gcopy.Neighbors[k] = newList
+			}
+		}
 	}
-	// For demonstration, we return just one path.
-	paths := [][]string{path}
-	// --- END STUB ---
 
+	if len(paths) == 0 {
+		return nil, errors.New("ERROR: no path found")
+	}
 	return paths, nil
 }
 
@@ -90,8 +125,6 @@ func FindSinglePath(g *Graph, start, end string) ([]string, error) {
 	if !found {
 		return nil, errors.New("ERROR: no path found")
 	}
-
-	// Reconstruct path.
 	var path []string
 	for at := end; at != ""; at = prev[at] {
 		path = append([]string{at}, path...)

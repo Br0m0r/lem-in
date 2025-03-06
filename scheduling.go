@@ -1,28 +1,35 @@
 package main
 
+import (
+	"sort"
+)
+
 // PathAssignment holds the assignment of ants to each path.
 type PathAssignment struct {
 	Paths       [][]string // each path as a slice of room names
 	AntsPerPath []int      // number of ants assigned to each corresponding path
 }
 
-// AssignAnts distributes ants among the available paths using a greedy load-balancing strategy.
+// AssignAnts distributes ants among available paths using a greedy algorithm with sorting.
+// Effective cost = (path length) + (ants already assigned) - 1.
 func AssignAnts(antCount int, paths [][]string) PathAssignment {
 	numPaths := len(paths)
 	antsPerPath := make([]int, numPaths)
 
-	// Greedily assign each ant to the path that minimizes (path_length + ants_assigned - 1).
 	for i := 0; i < antCount; i++ {
-		best := 0
-		bestScore := len(paths[0]) + antsPerPath[0] - 1
-		for j := 1; j < numPaths; j++ {
-			score := len(paths[j]) + antsPerPath[j] - 1
-			if score < bestScore {
-				bestScore = score
-				best = j
-			}
+		type pathCost struct {
+			index int
+			cost  int
 		}
-		antsPerPath[best]++
+		pathCosts := make([]pathCost, numPaths)
+		for j := 0; j < numPaths; j++ {
+			cost := len(paths[j]) + antsPerPath[j] - 1
+			pathCosts[j] = pathCost{index: j, cost: cost}
+		}
+		sort.Slice(pathCosts, func(a, b int) bool {
+			return pathCosts[a].cost < pathCosts[b].cost
+		})
+		antsPerPath[pathCosts[0].index]++
 	}
 	return PathAssignment{Paths: paths, AntsPerPath: antsPerPath}
 }

@@ -6,17 +6,17 @@ import (
 )
 
 // SimulateMultiPath moves ants along multiple paths concurrently based on the assignment.
-// It prints the moves turn by turn, ensuring each intermediate room holds only one ant.
+// It prints the moves turn by turn, ensuring that no intermediate room is occupied by more than one ant per turn.
 func SimulateMultiPath(antCount int, paths [][]string, assignment PathAssignment) {
-	// For each path, set up a simulation state.
-	// Each simulation state tracks:
+	// Each simulation state represents a path's state.
+	// For each path, we track:
 	// - The path (slice of room names)
-	// - Positions for each ant assigned to that path (initially -1 means not injected)
-	// - The ant IDs assigned to that path.
+	// - Positions for each ant on that path (initially -1 means not injected)
+	// - Global ant IDs assigned to that path.
 	type pathSim struct {
 		Path      []string
-		Positions []int // position index on the path for each ant assigned to this path
-		AntIDs    []int // the global ant numbers assigned to this path
+		Positions []int // position index for each ant in this path
+		AntIDs    []int // global ant numbers for this path
 	}
 	sims := make([]pathSim, len(paths))
 	antCounter := 1
@@ -36,40 +36,56 @@ func SimulateMultiPath(antCount int, paths [][]string, assignment PathAssignment
 
 	turn := 0
 	done := false
+
+	// Special case: if all paths are direct (length == 2), inject all ants immediately.
+	allDirect := true
+	for _, sim := range sims {
+		if len(sim.Path) != 2 {
+			allDirect = false
+			break
+		}
+	}
+	if allDirect {
+		turn = 1
+		turnMoves := []string{}
+		for _, sim := range sims {
+			for j, id := range sim.AntIDs {
+				sim.Positions[j] = 1
+				turnMoves = append(turnMoves, fmt.Sprintf("L%d-%s", id, sim.Path[1]))
+			}
+		}
+		fmt.Printf("Turn %d: %s\n", turn, strings.Join(turnMoves, " "))
+		fmt.Printf("Total turns: %d\n", turn)
+		return
+	}
+
+	// Synchronous updating for paths with intermediate rooms.
 	for !done {
 		turn++
 		turnMoves := []string{}
-		done = true // assume all paths are finished; will be set false if any path still has moving ants
+		done = true // assume finished; will set false if any path isn't complete
 
-		// Process each path simulation.
 		for _, sim := range sims {
 			pathLen := len(sim.Path)
-			// newPositions will hold the updated positions for this turn.
 			newPos := make([]int, len(sim.Positions))
 			copy(newPos, sim.Positions)
 
-			// Process ants in order for this path.
 			for j := 0; j < len(sim.Positions); j++ {
-				// If ant j has not yet been injected.
 				if sim.Positions[j] == -1 {
-					// Check newPos: if the first intermediate room (index 1) is free,
-					// inject this ant.
+					// Injection: if not injected and first intermediate room (index 1) is free in newPos.
 					if !isOccupied(newPos, 1) {
 						newPos[j] = 1
 						turnMoves = append(turnMoves, fmt.Sprintf("L%d-%s", sim.AntIDs[j], sim.Path[1]))
 					}
-				} else if sim.Positions[j] < pathLen-1 { // The ant is on the path but not finished.
+				} else if sim.Positions[j] < pathLen-1 {
 					next := sim.Positions[j] + 1
-					// For movement, check if the next room is free in newPos.
 					if next == pathLen-1 || !isOccupied(newPos, next) {
 						newPos[j] = next
 						turnMoves = append(turnMoves, fmt.Sprintf("L%d-%s", sim.AntIDs[j], sim.Path[next]))
 					}
 				}
 			}
-			// Update the simulation state for this path.
 			copy(sim.Positions, newPos)
-			// Check if any ant on this path is still not finished.
 			for _, pos := range sim.Positions {
 				if pos != pathLen-1 {
 					done = false

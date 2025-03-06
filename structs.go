@@ -18,5 +18,5 @@ type Tunnel struct {
 // Graph represents the ant farm as an adjacency list.
 type Graph struct {
 	Rooms     map[string]*Room
-	Neighbors map[string][]string // mapping room name to names of adjacent rooms.
+	Neighbors map[string][]string // mapping room name to adjacent room names.
 }

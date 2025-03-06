@@ -27,7 +27,7 @@ func Run() {
 		os.Exit(1)
 	}
 
-	// Find multiple valid paths from start to end.
+	// Find multiple valid vertex-disjoint paths from start to end.
 	paths, err := FindMultiplePaths(antFarmGraph)
 	if err != nil || len(paths) == 0 {
 		fmt.Println("ERROR: no valid paths found")
@@ -37,9 +37,9 @@ func Run() {
 	// Echo the input data.
 	PrintInputData(antCount, rooms, tunnels)
 
-	// Assign ants to paths.
+	// Assign ants to available paths using a greedy algorithm with sorting.
 	assignment := AssignAnts(antCount, paths)
 
-	// Simulate movements along the multiple paths concurrently.
+	// Simulate ant movements concurrently on all paths.
 	SimulateMultiPath(antCount, paths, assignment)
 }
