@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 )
 
 // SimulateAntMovements takes the ant count and paths and prints the ant movements turn-by-turn.
@@ -56,7 +57,7 @@ func canMove(positions []int, antIndex int) bool {
 	return true
 }
 
-// joinMoves concatenates the moves into a single string.
+// joinMoves concatenates the moves into a single string, separated by a space.
 func joinMoves(moves []string) string {
-	return fmt.Sprint(moves)
+	return strings.Join(moves, " ")
 }
