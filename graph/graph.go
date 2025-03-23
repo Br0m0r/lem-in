@@ -1,25 +1,25 @@
-package main
+package graph
 
 import (
 	"errors"
 	"fmt"
+
+	"lem-in/structs"
 )
 
-// BuildGraph constructs a graph from the provided rooms and tunnels.
-// It maps each room name to its Room struct and builds an adjacency list of neighbors.
-func BuildGraph(rooms []Room, tunnels []Tunnel) (*Graph, error) {
-	g := &Graph{
-		Rooms:     make(map[string]*Room),
+// BuildGraph constructs a graph from rooms and tunnels.
+// It builds a map of room names to Room structs and an adjacency list.
+func BuildGraph(rooms []structs.Room, tunnels []structs.Tunnel) (*structs.Graph, error) {
+	g := &structs.Graph{
+		Rooms:     make(map[string]*structs.Room),
 		Neighbors: make(map[string][]string),
 	}
 
-	// Add all rooms to the graph.
 	for i := range rooms {
 		room := rooms[i]
 		g.Rooms[room.Name] = &room
 	}
 
-	// Add tunnels as bidirectional edges.
 	for _, tunnel := range tunnels {
 		if _, ok := g.Rooms[tunnel.RoomA]; !ok {
 			return nil, fmt.Errorf("ERROR: tunnel references unknown room %s", tunnel.RoomA)
@@ -34,37 +34,34 @@ func BuildGraph(rooms []Room, tunnels []Tunnel) (*Graph, error) {
 	return g, nil
 }
 
-// ==================
-// Max-Flow Functions for Finding Multiple Paths
-// ==================
+// ---------------------
+// Max-Flow Functions
+// ---------------------
 
-// BuildFlowNetwork creates a flow network from the given graph.
-// Each edge in the graph is converted into a directed edge with a capacity of 1.
-func BuildFlowNetwork(g *Graph) *FlowNetwork {
-	network := &FlowNetwork{
-		Adjacency: make(map[string][]*FlowEdge),
+// BuildFlowNetwork creates a flow network from the graph.
+// Each edge gets a capacity of 1.
+func BuildFlowNetwork(g *structs.Graph) *structs.FlowNetwork {
+	network := &structs.FlowNetwork{
+		Adjacency: make(map[string][]*structs.FlowEdge),
 	}
-	// Add each room as a node in the flow network.
 	for node := range g.Rooms {
 		network.Nodes = append(network.Nodes, node)
 	}
-	// For each neighbor relationship, add a directed edge with capacity 1.
 	for room, neighbors := range g.Neighbors {
 		for _, neighbor := range neighbors {
-			edge := &FlowEdge{From: room, To: neighbor, Capacity: 1, Flow: 0}
+			edge := &structs.FlowEdge{From: room, To: neighbor, Capacity: 1, Flow: 0}
 			network.Adjacency[room] = append(network.Adjacency[room], edge)
 		}
 	}
 	return network
 }
 
-// EdmondsKarp runs the max-flow algorithm to compute the maximum number of edge-disjoint paths.
-// Each augmenting path found increases the flow by 1.
-func EdmondsKarp(network *FlowNetwork, start, end string) int {
+// EdmondsKarp runs the max-flow algorithm to find the maximum number of edge-disjoint paths.
+// Each found augmenting path increases the flow by 1.
+func EdmondsKarp(network *structs.FlowNetwork, start, end string) int {
 	maxFlow := 0
 	for {
-		// Perform BFS to find an augmenting path.
-		parent := make(map[string]*FlowEdge)
+		parent := make(map[string]*structs.FlowEdge)
 		queue := []string{start}
 		for len(queue) > 0 && parent[end] == nil {
 			current := queue[0]
@@ -80,11 +77,9 @@ func EdmondsKarp(network *FlowNetwork, start, end string) int {
 				}
 			}
 		}
-		// If no augmenting path is found, exit the loop.
 		if parent[end] == nil {
 			break
 		}
-		// Augment the flow along the found path by 1.
 		for node := end; node != start; {
 			edge := parent[node]
 			edge.Flow += 1
@@ -95,9 +90,9 @@ func EdmondsKarp(network *FlowNetwork, start, end string) int {
 	return maxFlow
 }
 
-// ExtractPaths retrieves all edge-disjoint paths that have a flow from start to end.
-// As each path is extracted, the used flow is removed to avoid duplicate paths.
-func ExtractPaths(network *FlowNetwork, start, end string) [][]string {
+// ExtractPaths retrieves all edge-disjoint paths with flow from start to end.
+// It removes used flow as paths are extracted.
+func ExtractPaths(network *structs.FlowNetwork, start, end string) [][]string {
 	var paths [][]string
 	for {
 		var path []string
@@ -106,9 +101,9 @@ func ExtractPaths(network *FlowNetwork, start, end string) [][]string {
 		for current != end {
 			found := false
 			for _, edge := range network.Adjacency[current] {
-				if edge.Flow > 0 { // Edge is used in the flow.
+				if edge.Flow > 0 {
 					path = append(path, edge.To)
-					edge.Flow = 0 // Remove flow so it isn't reused.
+					edge.Flow = 0
 					current = edge.To
 					found = true
 					break
@@ -118,7 +113,6 @@ func ExtractPaths(network *FlowNetwork, start, end string) [][]string {
 				break
 			}
 		}
-		// Break if no valid path from start to end is found.
 		if len(path) == 0 || path[len(path)-1] != end {
 			break
 		}
@@ -127,11 +121,9 @@ func ExtractPaths(network *FlowNetwork, start, end string) [][]string {
 	return paths
 }
 
-// FindMultiplePaths finds all edge-disjoint paths from the start to the end room using the max-flow approach.
-// It returns an error if no valid paths are found.
-func FindMultiplePaths(g *Graph) ([][]string, error) {
+// FindMultiplePaths finds all edge-disjoint paths from start to end using the max-flow approach.
+func FindMultiplePaths(g *structs.Graph) ([][]string, error) {
 	var start, end string
-	// Identify start and end rooms.
 	for name, room := range g.Rooms {
 		if room.IsStart {
 			start = name
@@ -143,15 +135,11 @@ func FindMultiplePaths(g *Graph) ([][]string, error) {
 	if start == "" || end == "" {
 		return nil, errors.New("ERROR: missing start or end room")
 	}
-
-	// Build the flow network from the graph.
 	network := BuildFlowNetwork(g)
-	// Run the max-flow algorithm.
 	maxFlow := EdmondsKarp(network, start, end)
 	if maxFlow == 0 {
 		return nil, errors.New("ERROR: no valid paths found")
 	}
-	// Extract and return the paths corresponding to the flows.
 	paths := ExtractPaths(network, start, end)
 	return paths, nil
 }

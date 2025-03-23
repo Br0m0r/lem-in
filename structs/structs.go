@@ -1,4 +1,4 @@
-package main
+package structs
 
 // Room represents a room in the ant farm.
 type Room struct {

@@ -1,14 +1,16 @@
-package main
+package visualizer
 
 import (
 	"fmt"
 	"strings"
+
+	"lem-in/scheduling"
+	"lem-in/structs"
 )
 
-// PrintExtraInfo generates a string containing extra information
-// (such as input details, summary, and found/selected paths) that is
-// written at the top of the simulation output file.
-func PrintExtraInfo(antCount int, rooms []Room, tunnels []Tunnel, paths [][]string, assignment PathAssignment) string {
+// PrintExtraInfo generates a string containing extra information that is written at the top of the simulation output file.
+// It includes the input data, a summary, and lists all found and selected paths.
+func PrintExtraInfo(antCount int, rooms []structs.Room, tunnels []structs.Tunnel, paths [][]string, assignment scheduling.PathAssignment) string {
 	var sb strings.Builder
 
 	// Echo input data.
@@ -27,7 +29,7 @@ func PrintExtraInfo(antCount int, rooms []Room, tunnels []Tunnel, paths [][]stri
 	}
 	sb.WriteString("\n")
 
-	// Include the summary.
+	// Include summary.
 	sb.WriteString("----------- Summary -----------\n")
 	sb.WriteString(fmt.Sprintf("Number of ants: %d\n", antCount))
 	sb.WriteString(fmt.Sprintf("Number of rooms: %d\n", len(rooms)))
@@ -53,7 +55,7 @@ func PrintExtraInfo(antCount int, rooms []Room, tunnels []Tunnel, paths [][]stri
 	}
 	sb.WriteString("\n")
 
-	// List selected paths based on the assignment.
+	// List selected paths.
 	sb.WriteString("---------- Selected Paths ---------- \n")
 	for i, p := range assignment.Paths {
 		sb.WriteString(fmt.Sprintf("%d) %s\n", i+1, strings.Join(p, " -> ")))
