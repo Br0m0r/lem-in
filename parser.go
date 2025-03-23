@@ -9,7 +9,9 @@ import (
 	"strings"
 )
 
-// ParseInputFile reads the file and returns the ant count, rooms, and tunnels.
+// ParseInputFile reads the input file and returns the ant count, list of rooms, tunnels, and an error if any.
+// It expects the first line to be the ant count, then room definitions (with "##start" and "##end" commands),
+// followed by tunnel definitions.
 func ParseInputFile(filename string) (int, []Room, []Tunnel, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -22,7 +24,7 @@ func ParseInputFile(filename string) (int, []Room, []Tunnel, error) {
 	var rooms []Room
 	var tunnels []Tunnel
 
-	// Read ant count (first line).
+	// Read the ant count (first line).
 	if scanner.Scan() {
 		countStr := strings.TrimSpace(scanner.Text())
 		antCount, err = strconv.Atoi(countStr)
@@ -32,12 +34,13 @@ func ParseInputFile(filename string) (int, []Room, []Tunnel, error) {
 	}
 
 	var isNextRoomStart, isNextRoomEnd bool
+	// Process the rest of the file line by line.
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if len(line) == 0 {
 			continue
 		}
-		// Process commands and comments.
+		// Process commands (lines starting with "#").
 		if line[0] == '#' {
 			if strings.HasPrefix(line, "##start") {
 				isNextRoomStart = true
@@ -81,22 +84,4 @@ func ParseInputFile(filename string) (int, []Room, []Tunnel, error) {
 	}
 
 	return antCount, rooms, tunnels, nil
-}
-
-// PrintInputData echoes the input data and adds a blank line.
-func PrintInputData(antCount int, rooms []Room, tunnels []Tunnel) {
-	fmt.Println(antCount)
-	for _, room := range rooms {
-		if room.IsStart {
-			fmt.Println("##start")
-		}
-		if room.IsEnd {
-			fmt.Println("##end")
-		}
-		fmt.Printf("%s %d %d\n", room.Name, room.X, room.Y)
-	}
-	for _, tunnel := range tunnels {
-		fmt.Printf("%s-%s\n", tunnel.RoomA, tunnel.RoomB)
-	}
-	fmt.Println("")
 }

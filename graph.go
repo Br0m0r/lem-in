@@ -5,18 +5,21 @@ import (
 	"fmt"
 )
 
-// BuildGraph constructs a graph from rooms and tunnels.
+// BuildGraph constructs a graph from the provided rooms and tunnels.
+// It maps each room name to its Room struct and builds an adjacency list of neighbors.
 func BuildGraph(rooms []Room, tunnels []Tunnel) (*Graph, error) {
 	g := &Graph{
 		Rooms:     make(map[string]*Room),
 		Neighbors: make(map[string][]string),
 	}
 
+	// Add all rooms to the graph.
 	for i := range rooms {
 		room := rooms[i]
 		g.Rooms[room.Name] = &room
 	}
 
+	// Add tunnels as bidirectional edges.
 	for _, tunnel := range tunnels {
 		if _, ok := g.Rooms[tunnel.RoomA]; !ok {
 			return nil, fmt.Errorf("ERROR: tunnel references unknown room %s", tunnel.RoomA)
@@ -31,54 +34,105 @@ func BuildGraph(rooms []Room, tunnels []Tunnel) (*Graph, error) {
 	return g, nil
 }
 
-// CopyGraph creates a deep copy of the given graph.
-func CopyGraph(g *Graph) *Graph {
-	newG := &Graph{
-		Rooms:     make(map[string]*Room),
-		Neighbors: make(map[string][]string),
-	}
-	for k, room := range g.Rooms {
-		newG.Rooms[k] = room // Rooms are immutable.
-	}
-	for k, neighbors := range g.Neighbors {
-		newNeighbors := make([]string, len(neighbors))
-		copy(newNeighbors, neighbors)
-		newG.Neighbors[k] = newNeighbors
-	}
-	return newG
-}
+// ==================
+// Max-Flow Functions for Finding Multiple Paths
+// ==================
 
-// removeEdge removes the edge between u and v in the graph.
-func removeEdge(g *Graph, u, v string) {
-	// Remove v from u's neighbor list.
-	newList := []string{}
-	for _, w := range g.Neighbors[u] {
-		if w != v {
-			newList = append(newList, w)
+// BuildFlowNetwork creates a flow network from the given graph.
+// Each edge in the graph is converted into a directed edge with a capacity of 1.
+func BuildFlowNetwork(g *Graph) *FlowNetwork {
+	network := &FlowNetwork{
+		Adjacency: make(map[string][]*FlowEdge),
+	}
+	// Add each room as a node in the flow network.
+	for node := range g.Rooms {
+		network.Nodes = append(network.Nodes, node)
+	}
+	// For each neighbor relationship, add a directed edge with capacity 1.
+	for room, neighbors := range g.Neighbors {
+		for _, neighbor := range neighbors {
+			edge := &FlowEdge{From: room, To: neighbor, Capacity: 1, Flow: 0}
+			network.Adjacency[room] = append(network.Adjacency[room], edge)
 		}
 	}
-	g.Neighbors[u] = newList
-
-	// Remove u from v's neighbor list.
-	newList = []string{}
-	for _, w := range g.Neighbors[v] {
-		if w != u {
-			newList = append(newList, w)
-		}
-	}
-	g.Neighbors[v] = newList
+	return network
 }
 
-// FindMultiplePaths finds all vertex-disjoint paths from start to end by repeatedly running BFS
-// and removing intermediate vertices from a copied graph.
-func FindMultiplePaths(g *Graph) ([][]string, error) {
+// EdmondsKarp runs the max-flow algorithm to compute the maximum number of edge-disjoint paths.
+// Each augmenting path found increases the flow by 1.
+func EdmondsKarp(network *FlowNetwork, start, end string) int {
+	maxFlow := 0
+	for {
+		// Perform BFS to find an augmenting path.
+		parent := make(map[string]*FlowEdge)
+		queue := []string{start}
+		for len(queue) > 0 && parent[end] == nil {
+			current := queue[0]
+			queue = queue[1:]
+			for _, edge := range network.Adjacency[current] {
+				residual := edge.Capacity - edge.Flow
+				if residual > 0 && parent[edge.To] == nil && edge.To != start {
+					parent[edge.To] = edge
+					queue = append(queue, edge.To)
+					if edge.To == end {
+						break
+					}
+				}
+			}
+		}
+		// If no augmenting path is found, exit the loop.
+		if parent[end] == nil {
+			break
+		}
+		// Augment the flow along the found path by 1.
+		for node := end; node != start; {
+			edge := parent[node]
+			edge.Flow += 1
+			node = edge.From
+		}
+		maxFlow++
+	}
+	return maxFlow
+}
+
+// ExtractPaths retrieves all edge-disjoint paths that have a flow from start to end.
+// As each path is extracted, the used flow is removed to avoid duplicate paths.
+func ExtractPaths(network *FlowNetwork, start, end string) [][]string {
 	var paths [][]string
+	for {
+		var path []string
+		current := start
+		path = append(path, current)
+		for current != end {
+			found := false
+			for _, edge := range network.Adjacency[current] {
+				if edge.Flow > 0 { // Edge is used in the flow.
+					path = append(path, edge.To)
+					edge.Flow = 0 // Remove flow so it isn't reused.
+					current = edge.To
+					found = true
+					break
+				}
+			}
+			if !found {
+				break
+			}
+		}
+		// Break if no valid path from start to end is found.
+		if len(path) == 0 || path[len(path)-1] != end {
+			break
+		}
+		paths = append(paths, path)
+	}
+	return paths
+}
 
-	Gcopy := CopyGraph(g)
-
-	// Identify start and end.
+// FindMultiplePaths finds all edge-disjoint paths from the start to the end room using the max-flow approach.
+// It returns an error if no valid paths are found.
+func FindMultiplePaths(g *Graph) ([][]string, error) {
 	var start, end string
-	for name, room := range Gcopy.Rooms {
+	// Identify start and end rooms.
+	for name, room := range g.Rooms {
 		if room.IsStart {
 			start = name
 		}
@@ -90,73 +144,14 @@ func FindMultiplePaths(g *Graph) ([][]string, error) {
 		return nil, errors.New("ERROR: missing start or end room")
 	}
 
-	for {
-		path, err := FindSinglePath(Gcopy, start, end)
-		if err != nil {
-			break
-		}
-		paths = append(paths, path)
-		if len(path) == 2 {
-			// For a direct path, remove the edge so it won't be found repeatedly.
-			removeEdge(Gcopy, start, end)
-		} else {
-			// Remove intermediate vertices (except start and end) from Gcopy.
-			for i := 1; i < len(path)-1; i++ {
-				v := path[i]
-				delete(Gcopy.Rooms, v)
-				delete(Gcopy.Neighbors, v)
-				// Remove v from all neighbor lists.
-				for k, nList := range Gcopy.Neighbors {
-					newList := []string{}
-					for _, w := range nList {
-						if w != v {
-							newList = append(newList, w)
-						}
-					}
-					Gcopy.Neighbors[k] = newList
-				}
-			}
-		}
-	}
-
-	if len(paths) == 0 {
+	// Build the flow network from the graph.
+	network := BuildFlowNetwork(g)
+	// Run the max-flow algorithm.
+	maxFlow := EdmondsKarp(network, start, end)
+	if maxFlow == 0 {
 		return nil, errors.New("ERROR: no valid paths found")
 	}
+	// Extract and return the paths corresponding to the flows.
+	paths := ExtractPaths(network, start, end)
 	return paths, nil
-}
-
-// FindSinglePath uses BFS to find one shortest path from start to end.
-func FindSinglePath(g *Graph, start, end string) ([]string, error) {
-	queue := []string{start}
-	prev := make(map[string]string)
-	visited := make(map[string]bool)
-	visited[start] = true
-
-	found := false
-	for len(queue) > 0 {
-		curr := queue[0]
-		queue = queue[1:]
-		if curr == end {
-			found = true
-			break
-		}
-		for _, neighbor := range g.Neighbors[curr] {
-			if !visited[neighbor] {
-				visited[neighbor] = true
-				prev[neighbor] = curr
-				queue = append(queue, neighbor)
-			}
-		}
-	}
-	if !found {
-		return nil, errors.New("ERROR: no path found")
-	}
-	var path []string
-	for at := end; at != ""; at = prev[at] {
-		path = append([]string{at}, path...)
-		if at == start {
-			break
-		}
-	}
-	return path, nil
 }

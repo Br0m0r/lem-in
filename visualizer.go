@@ -5,93 +5,60 @@ import (
 	"strings"
 )
 
-// PrintSummary prints a textual summary in English, similar to your screenshot.
-func PrintSummary(
-	antCount int,
-	rooms []Room,
-	tunnels []Tunnel,
-	paths [][]string,         // all found paths
-	selectedPaths [][]string, // chosen/used paths, e.g. after scheduling
-) {
-	// 1) Basic summary
-	fmt.Println("----------- Summary -----------")
-	fmt.Printf("Number of ants: %d\n", antCount)
-	fmt.Printf("Number of rooms: %d\n", len(rooms))
-	fmt.Printf("Number of tunnels: %d\n", len(tunnels))
+// PrintExtraInfo generates a string containing extra information
+// (such as input details, summary, and found/selected paths) that is
+// written at the top of the simulation output file.
+func PrintExtraInfo(antCount int, rooms []Room, tunnels []Tunnel, paths [][]string, assignment PathAssignment) string {
+	var sb strings.Builder
 
-	// Identify start/end rooms
-	var startRoomName, endRoomName string
-	for _, r := range rooms {
-		if r.IsStart {
-			startRoomName = r.Name
+	// Echo input data.
+	sb.WriteString(fmt.Sprintf("%d\n", antCount))
+	for _, room := range rooms {
+		if room.IsStart {
+			sb.WriteString("##start\n")
 		}
-		if r.IsEnd {
-			endRoomName = r.Name
+		if room.IsEnd {
+			sb.WriteString("##end\n")
+		}
+		sb.WriteString(fmt.Sprintf("%s %d %d\n", room.Name, room.X, room.Y))
+	}
+	for _, tunnel := range tunnels {
+		sb.WriteString(fmt.Sprintf("%s-%s\n", tunnel.RoomA, tunnel.RoomB))
+	}
+	sb.WriteString("\n")
+
+	// Include the summary.
+	sb.WriteString("----------- Summary -----------\n")
+	sb.WriteString(fmt.Sprintf("Number of ants: %d\n", antCount))
+	sb.WriteString(fmt.Sprintf("Number of rooms: %d\n", len(rooms)))
+	sb.WriteString(fmt.Sprintf("Number of tunnels: %d\n", len(tunnels)))
+	var startRoom, endRoom string
+	for _, room := range rooms {
+		if room.IsStart {
+			startRoom = room.Name
+		}
+		if room.IsEnd {
+			endRoom = room.Name
 		}
 	}
-	fmt.Printf("Start room: %s\n", startRoomName)
-	fmt.Printf("End room: %s\n", endRoomName)
+	sb.WriteString(fmt.Sprintf("Start room: %s\n", startRoom))
+	sb.WriteString(fmt.Sprintf("End room: %s\n", endRoom))
+	sb.WriteString("\n")
 
-	// 2) Print room IDs and names
-	//    Build a map from room name -> ID
-	roomIDMap := make(map[string]int)
-	for i, r := range rooms {
-		roomIDMap[r.Name] = i
-	}
-
-	fmt.Println("\n---------- Room IDs and Names ----------")
-	for i, r := range rooms {
-		tag := ""
-		if r.IsStart {
-			tag = " (start)"
-		} else if r.IsEnd {
-			tag = " (end)"
-		}
-		fmt.Printf("%d => %s%s\n", i, r.Name, tag)
-	}
-
-	// 3) Build an adjacency matrix (or adjacency list) to show the connections.
-	n := len(rooms)
-	matrix := make([][]int, n)
-	for i := 0; i < n; i++ {
-		matrix[i] = make([]int, n)
-	}
-	for _, t := range tunnels {
-		i := roomIDMap[t.RoomA]
-		j := roomIDMap[t.RoomB]
-		matrix[i][j] = 1
-		matrix[j][i] = 1
-	}
-
-	fmt.Println("\n---------- Room Connections (Adjacency Matrix) ----------")
-	header := "    "
-	for i := 0; i < n; i++ {
-		header += fmt.Sprintf("%2d ", i)
-	}
-	fmt.Println(header)
-	for i := 0; i < n; i++ {
-		rowStr := fmt.Sprintf("%2d |", i)
-		for j := 0; j < n; j++ {
-			rowStr += fmt.Sprintf(" %d ", matrix[i][j])
-		}
-		fmt.Println(rowStr)
-	}
-
-	// 4) Print all found paths
-	fmt.Println("\n---------- All Found Paths ----------")
-	fmt.Printf("Number of possible paths: %d\n", len(paths))
+	// List all found paths.
+	sb.WriteString("---------- All Found Paths ----------\n")
+	sb.WriteString(fmt.Sprintf("Number of possible paths: %d\n", len(paths)))
 	for i, p := range paths {
-		fmt.Printf("%d) %s\n", i+1, strings.Join(p, " -> "))
+		sb.WriteString(fmt.Sprintf("%d) %s\n", i+1, strings.Join(p, " -> ")))
 	}
+	sb.WriteString("\n")
 
-	// 5) Print selected paths
-	fmt.Println("\n---------- Selected Paths ----------")
-	if len(selectedPaths) == 0 {
-		fmt.Println("(No selected paths)")
-	} else {
-		for i, p := range selectedPaths {
-			fmt.Printf("%d) %s\n", i+1, strings.Join(p, " -> "))
-		}
+	// List selected paths based on the assignment.
+	sb.WriteString("---------- Selected Paths ---------- \n")
+	for i, p := range assignment.Paths {
+		sb.WriteString(fmt.Sprintf("%d) %s\n", i+1, strings.Join(p, " -> ")))
 	}
-	fmt.Println()
+	sb.WriteString("\n")
+
+	return sb.String()
 }
