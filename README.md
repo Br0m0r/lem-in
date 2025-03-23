@@ -25,8 +25,6 @@ Installation
     Clone the Repository:
 
 git clone https://github.com/Br0m0r/lem-in.git
-cd lem-in
-
 
 Usage
 
