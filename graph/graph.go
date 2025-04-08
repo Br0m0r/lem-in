@@ -7,139 +7,125 @@ import (
 	"lem-in/structs"
 )
 
-// BuildGraph constructs a graph from rooms and tunnels.
-// It builds a map of room names to Room structs and an adjacency list.
-func BuildGraph(rooms []structs.Room, tunnels []structs.Tunnel) (*structs.Graph, error) {
-	g := &structs.Graph{
-		Rooms:     make(map[string]*structs.Room),
-		Neighbors: make(map[string][]string),
+// BuildGraph creates a graph (map) of the ant farm using the list of rooms and tunnels.
+func BuildGraph(roomList []structs.Room, connections []structs.Tunnel) (*structs.Graph, error) {
+	graphData := &structs.Graph{
+		Rooms:     make(map[string]*structs.Room), // Keys will be room names.
+		Neighbors: make(map[string][]string),      // Each room name will map to a list of connected room names.
 	}
 
-	for i := range rooms {
-		room := rooms[i]
-		g.Rooms[room.Name] = &room
+	for i := range roomList {
+		currentRoom := roomList[i]
+		graphData.Rooms[currentRoom.Name] = &currentRoom
 	}
 
-	for _, tunnel := range tunnels {
-		if _, ok := g.Rooms[tunnel.RoomA]; !ok {
-			return nil, fmt.Errorf("ERROR: tunnel references unknown room %s", tunnel.RoomA)
+	// Process each tunnel and update the list of connected rooms.
+	for _, tunnel := range connections {
+		if _, found := graphData.Rooms[tunnel.RoomA]; !found {
+			return nil, fmt.Errorf("ERROR: tunnel refers to unknown room %s", tunnel.RoomA)
 		}
-		if _, ok := g.Rooms[tunnel.RoomB]; !ok {
-			return nil, fmt.Errorf("ERROR: tunnel references unknown room %s", tunnel.RoomB)
+		if _, found := graphData.Rooms[tunnel.RoomB]; !found {
+			return nil, fmt.Errorf("ERROR: tunnel refers to unknown room %s", tunnel.RoomB)
 		}
-		g.Neighbors[tunnel.RoomA] = append(g.Neighbors[tunnel.RoomA], tunnel.RoomB)
-		g.Neighbors[tunnel.RoomB] = append(g.Neighbors[tunnel.RoomB], tunnel.RoomA)
+
+		graphData.Neighbors[tunnel.RoomA] = append(graphData.Neighbors[tunnel.RoomA], tunnel.RoomB)
+		graphData.Neighbors[tunnel.RoomB] = append(graphData.Neighbors[tunnel.RoomB], tunnel.RoomA)
 	}
 
-	return g, nil
+	return graphData, nil
 }
 
-// ---------------------
-// Max-Flow Functions
-// ---------------------
+// FindMultiplePaths finds all separate paths (without reusing tunnels) from the start room to the end room
+// using a breadth-first search (BFS) approach.
+func FindMultiplePaths(graphData *structs.Graph) ([][]string, error) {
+	var startRoom, endRoom string
 
-// BuildFlowNetwork creates a flow network from the graph.
-// Each edge gets a capacity of 1.
-func BuildFlowNetwork(g *structs.Graph) *structs.FlowNetwork {
-	network := &structs.FlowNetwork{
-		Adjacency: make(map[string][]*structs.FlowEdge),
-	}
-	for node := range g.Rooms {
-		network.Nodes = append(network.Nodes, node)
-	}
-	for room, neighbors := range g.Neighbors {
-		for _, neighbor := range neighbors {
-			edge := &structs.FlowEdge{From: room, To: neighbor, Capacity: 1, Flow: 0}
-			network.Adjacency[room] = append(network.Adjacency[room], edge)
+	for name, roomData := range graphData.Rooms {
+		if roomData.IsStart {
+			startRoom = name
+		}
+		if roomData.IsEnd {
+			endRoom = name
 		}
 	}
-	return network
-}
-
-// EdmondsKarp runs the max-flow algorithm to find the maximum number of edge-disjoint paths.
-// Each found augmenting path increases the flow by 1.
-func EdmondsKarp(network *structs.FlowNetwork, start, end string) int {
-	maxFlow := 0
-	for {
-		parent := make(map[string]*structs.FlowEdge)
-		queue := []string{start}
-		for len(queue) > 0 && parent[end] == nil {
-			current := queue[0]
-			queue = queue[1:]
-			for _, edge := range network.Adjacency[current] {
-				residual := edge.Capacity - edge.Flow
-				if residual > 0 && parent[edge.To] == nil && edge.To != start {
-					parent[edge.To] = edge
-					queue = append(queue, edge.To)
-					if edge.To == end {
-						break
-					}
-				}
-			}
-		}
-		if parent[end] == nil {
-			break
-		}
-		for node := end; node != start; {
-			edge := parent[node]
-			edge.Flow += 1
-			node = edge.From
-		}
-		maxFlow++
-	}
-	return maxFlow
-}
-
-// ExtractPaths retrieves all edge-disjoint paths with flow from start to end.
-// It removes used flow as paths are extracted.
-func ExtractPaths(network *structs.FlowNetwork, start, end string) [][]string {
-	var paths [][]string
-	for {
-		var path []string
-		current := start
-		path = append(path, current)
-		for current != end {
-			found := false
-			for _, edge := range network.Adjacency[current] {
-				if edge.Flow > 0 {
-					path = append(path, edge.To)
-					edge.Flow = 0
-					current = edge.To
-					found = true
-					break
-				}
-			}
-			if !found {
-				break
-			}
-		}
-		if len(path) == 0 || path[len(path)-1] != end {
-			break
-		}
-		paths = append(paths, path)
-	}
-	return paths
-}
-
-// FindMultiplePaths finds all edge-disjoint paths from start to end using the max-flow approach.
-func FindMultiplePaths(g *structs.Graph) ([][]string, error) {
-	var start, end string
-	for name, room := range g.Rooms {
-		if room.IsStart {
-			start = name
-		}
-		if room.IsEnd {
-			end = name
-		}
-	}
-	if start == "" || end == "" {
+	if startRoom == "" || endRoom == "" {
 		return nil, errors.New("ERROR: missing start or end room")
 	}
-	network := BuildFlowNetwork(g)
-	maxFlow := EdmondsKarp(network, start, end)
-	if maxFlow == 0 {
+
+	// Make a copy of the Neighbors map (connections) so that we can modify it as we remove used tunnels.
+	connectionsCopy := make(map[string][]string)
+	for roomName, connectedList := range graphData.Neighbors {
+		newList := make([]string, len(connectedList))
+		copy(newList, connectedList)
+		connectionsCopy[roomName] = newList
+	}
+
+	var foundPaths [][]string
+
+	// Repeatedly search for a new path using BFS.
+	for {
+		path, pathFound := bfs(connectionsCopy, startRoom, endRoom)
+		if !pathFound {
+			break
+		}
+		foundPaths = append(foundPaths, path)
+		// Remove the tunnels used in this path so they cannot be used again.
+		removePathEdges(connectionsCopy, path)
+	}
+
+	if len(foundPaths) == 0 {
 		return nil, errors.New("ERROR: no valid paths found")
 	}
-	paths := ExtractPaths(network, start, end)
-	return paths, nil
+	return foundPaths, nil
+}
+
+// bfs performs a breadth-first search to find one path from the startRoom to the endRoom.
+func bfs(connections map[string][]string, startRoom, endRoom string) ([]string, bool) {
+	queue := []string{startRoom}          // Start with the startRoom
+	visited := make(map[string]bool)      //track visited rooms.
+	parentRoom := make(map[string]string) // record how we reached each room.
+	visited[startRoom] = true
+
+	for len(queue) > 0 {
+		currentRoom := queue[0]
+		queue = queue[1:]
+		// If we've reached the end room rebuild the path.
+		if currentRoom == endRoom {
+			var path []string
+			// Reconstruct the path by going backwards from endRoom using the parentRoom map.
+			for room := endRoom; room != ""; room = parentRoom[room] {
+				path = append([]string{room}, path...)
+			}
+			return path, true
+		}
+		// Check every room directly connected to the current room.
+		for _, nextRoom := range connections[currentRoom] {
+			if !visited[nextRoom] {
+				visited[nextRoom] = true
+				parentRoom[nextRoom] = currentRoom
+				queue = append(queue, nextRoom)
+			}
+		}
+	}
+	return nil, false
+}
+
+// removePathEdges removes the tunnels used in a given path from the connections map.
+// The reverse connections are kept.
+func removePathEdges(connections map[string][]string, roomPath []string) {
+	for i := 0; i < len(roomPath)-1; i++ {
+		fromRoom, toRoom := roomPath[i], roomPath[i+1]
+		connections[fromRoom] = removeEdge(connections[fromRoom], toRoom)
+	}
+}
+
+// removeEdge removes a specific room name from a list of connected rooms.
+func removeEdge(connectionList []string, roomNameToRemove string) []string {
+	newList := connectionList[:0] // Reuse the same underlying array.
+	for _, roomName := range connectionList {
+		if roomName != roomNameToRemove {
+			newList = append(newList, roomName)
+		}
+	}
+	return newList
 }

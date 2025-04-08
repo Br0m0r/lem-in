@@ -2,7 +2,7 @@ Lem-in Project
 
 Welcome, oh Supreme Overlord, to the ultimate Lem-in simulation project—where ants traverse labyrinths in a beautifully orchestrated parade.
 
-                                                          Overview
+                                                               Overview
 
 Lem-in is a simulation program that:
 
@@ -24,7 +24,9 @@ Installation
 
     Clone the Repository:
 
-git clone https://github.com/Br0m0r/lem-in.git
+git clone https://platform.zone01.gr/git/mfoteino/lem-in.git
+cd lem-in
+
 
 Usage
 

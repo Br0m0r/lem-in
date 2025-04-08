@@ -11,8 +11,9 @@ import (
 	"lem-in/visualizer"
 )
 
-// Run is the application entry point.
+// Run is the entry point for the application workflow.
 func Run() {
+
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: go run . <input_file>")
 		os.Exit(1)
@@ -20,7 +21,6 @@ func Run() {
 
 	inputFile := os.Args[1]
 
-	// Parse input, build graph, assign ants, etc.
 	antCount, rooms, tunnels, err := parser.ParseInputFile(inputFile)
 	if err != nil {
 		fmt.Println(err)
@@ -59,8 +59,8 @@ func Run() {
 	}
 
 	assignment := scheduling.AssignAnts(antCount, paths)
+
 	extraInfo := visualizer.PrintExtraInfo(antCount, rooms, tunnels, paths, assignment)
 
-	// Run the simulation.
 	simulation.SimulateMultiPath(antCount, paths, assignment, extraInfo)
 }
